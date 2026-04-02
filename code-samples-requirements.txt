@@ -1,0 +1,4 @@
+# Python dependencies for chapter code samples (install once for the whole docs tree)
+pydantic>=2.0,<3
+httpx>=0.27,<1
+PyJWT>=2.8,<3
