@@ -1,6 +1,6 @@
 # Architecture Overview (Reference)
 
-> A single-page diagram of how a production-grade coding agent stack *can* fit together. Supplementary to the 16 implementation chapters—no `code-samples/` here.
+> A single-page diagram of how a production-grade coding agent stack *can* fit together. Supplementary to chapters 01–17 (each with `code-samples/`); this reference page has none.
 
 This README sketches one **reference layout** for user/IDE surfaces, query engine, tools, services, and permissions. It synthesizes patterns described across the playbook.
 
