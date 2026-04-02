@@ -6,15 +6,41 @@
 
 If you build **agents** (orchestrators around models, tools, and retrieval), **startup time** is part of user-perceived latency and of cost when you spin workers often. This chapter covers four ideas production stacks combine: run **independent work in parallel**, **gate** optional capabilities so they do not load by default, **defer** heavy imports until a code path needs them, and **preconnect** to APIs so the first model or tool HTTP round-trip overlaps with other boot work.
 
-**Parallel boot** — Configuration, credential resolution, optional service warmups, and connector handshakes that do not depend on each other should run **concurrently** with explicit timeouts, not in an arbitrary serial order. Early in the process, fire cheap IO (subprocess probes, secret prefetch) **before or beside** long module graphs so wall-clock overlaps with import evaluation.
+## 14.1 Parallel boot
 
-**Feature gates** — Optional stacks (extra tools, experimental UI, coordinator modes) stay **off by default** or behind flags resolved **once** at startup. Hot paths read stable booleans; bundlers can drop dead branches when gates are compile-time constants.
+Configuration, credential resolution, optional service warmups, and connector handshakes that do not depend on each other should run **concurrently** with explicit timeouts, not in an arbitrary serial order. Early in the process, fire cheap IO (subprocess probes, secret prefetch) **before or beside** long module graphs so wall-clock overlaps with import evaluation.
 
-**Lazy loading** — Import or construct expensive modules, clients, and Zod-style schemas **inside** the functions that need them, or behind factories, so “ready to accept work” arrives before paying for every dependency.
+**Concrete example — parallel boot timeline:**
 
-**API preconnect** — Reuse HTTP sessions with connection pooling; when TLS trust material and proxy settings are finalized, overlap **TCP/TLS setup** with later startup so the first real API call reuses a warm connection (skip preconnect when the transport does not share that pool).
+```
+ 0 ms  Process start
+       ├── [credential prefetch]  ─────────────────────────► done  45 ms
+       ├── [config file load]     ──────────────► done  30 ms
+       ├── [MCP handshake]        ────────────────────────────────► done  80 ms
+       └── [import heavy modules] ───────────────────────► done  60 ms
+ 80 ms All parallel tasks complete (wall clock = slowest task)
 
-**Typical production stack (conceptual).** Many CLIs overlap cheap IO with module load: credential or policy probes at process start, named **checkpoints** from “imports loaded” through config and first action, a **memoized init** that resolves TLS trust and proxy settings before warming HTTP pools, and **parallel dynamic imports** for analytics or optional subsystems. Preconnect runs only after the transport stack is configured; it may be skipped when the deployment uses a vendor-specific API client or a non-shared dispatcher.
+ Serial equivalent: 45 + 30 + 80 + 60 = 215 ms
+ Parallel actual:   80 ms  (2.7x faster)
+```
+
+## 14.2 Feature gates
+
+Optional stacks (extra tools, experimental UI, coordinator modes) stay **off by default** or behind flags resolved **once** at startup. Hot paths read stable booleans; bundlers can drop dead branches when gates are compile-time constants.
+
+## 14.3 Lazy loading
+
+Import or construct expensive modules, clients, and Zod-style schemas **inside** the functions that need them, or behind factories, so "ready to accept work" arrives before paying for every dependency.
+
+## 14.4 API preconnect
+
+Reuse HTTP sessions with connection pooling; when TLS trust material and proxy settings are finalized, overlap **TCP/TLS setup** with later startup so the first real API call reuses a warm connection (skip preconnect when the transport does not share that pool).
+
+---
+
+**Typical production stack (conceptual).** Many CLIs overlap cheap IO with module load: credential or policy probes at process start, named **checkpoints** from "imports loaded" through config and first action, a **memoized init** that resolves TLS trust and proxy settings before warming HTTP pools, and **parallel dynamic imports** for analytics or optional subsystems. Preconnect runs only after the transport stack is configured; it may be skipped when the deployment uses a vendor-specific API client or a non-shared dispatcher.
+
+> **Tie-in — Chapter 10 (Subagents):** MCP cold start overlaps with boot. When the agent spawns MCP servers or subagent processes during startup, those handshakes are prime candidates for parallel boot. The connection lifecycle described in [Chapter 09 – MCP Integration](../09-mcp-integration/README.md) and the fork-vs-tool decision from [Chapter 10 – Subagents](../10-subagents/README.md) both influence how many parallel tasks appear on the critical path.
 
 ## How it fits together
 
@@ -50,7 +76,7 @@ flowchart LR
 
 ## Insights
 
-- **MCP and tools** — Connector handshakes are startup IO; batching or parallel connects matters with many servers. **[Chapter 09 – MCP Integration](../09-mcp-integration/README.md)** covers lifecycle; map “preconnect” to overlapping that work with config and auth when dependencies allow.
+- **MCP and tools** — Connector handshakes are startup IO; batching or parallel connects matters with many servers. **[Chapter 09 – MCP Integration](../09-mcp-integration/README.md)** covers lifecycle; map "preconnect" to overlapping that work with config and auth when dependencies allow.
 - **Registry or catalog fetches** — Fire-and-forget cache warmups are fine only when they **cannot** block readiness; use timeouts and ignore failures for non-essential lists.
 - **Circular dependencies** — Lazy requires or dynamic imports are often the smallest fix; prefer that over fragile import reordering across a large graph.
 

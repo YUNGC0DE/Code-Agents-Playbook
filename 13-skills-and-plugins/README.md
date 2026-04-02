@@ -6,15 +6,48 @@
 
 ## Overview
 
-**Skills.** A **skill** is a reusable instruction pack stored as Markdown (usually with YAML frontmatter). The runtime **discovers** files, shows the model a **compact catalog** (names and short blurbs under a character budget), and loads the **full body** only when needed: slash command, **Skill** tool call, or subagent preload. Skills are **data**; they scale with what users and projects add to disk.
+Claude Code extends its capabilities through two complementary mechanisms: **skills** and **plugins**. Skills are single-file Markdown instructions that teach Claude how to perform a specific task. Plugins are larger bundles that can package skills together with hooks, MCP servers, and other components.
 
-**Plugins.** A **plugin** is a **bundle**: manifest paths (commands, skills, agents, hooks, MCP, …) loaded at startup, plus optional **built-in** definitions registered in code. Plugins are closer to **shipping features** than to a single markdown file. Marketplace plugins resolve from git/remotes; **built-in** plugins use `registerBuiltinPlugin` and appear under `/plugin` as toggles—see **Built-in plugins** below.
+Both are discovered automatically at startup. The runtime builds a compact catalog of available skills (names and short descriptions kept under a character budget) and only loads the full body when a skill is actually invoked—via a slash command, a **Skill** tool call, or a subagent preload. This lazy-loading design means you can add dozens of skills without bloating every conversation's context.
 
-**Frontmatter.** YAML between `---` lines carries **machine-readable** fields (`name`, `description`, `when_to_use`, tool allowlists, fork context, paths, hooks, …). The runtime uses it for discovery, listing, routing, and conditional activation. Invalid YAML should **fail fast** with a **path-qualified** error from your parser.
+> **Tie-in -- Chapter 02 (Tool System).** Skills surface to the model as invocations of the **Skill** tool, which is part of the same tool pipeline covered in Chapter 02. Permission checks, tool allowlists, and execution flow all follow the standard tool system rules.
 
-**Substitution.** Placeholders in the skill body are filled at **invocation** time: **argument** placeholders (`$ARGUMENTS`, indexed slots, named args from frontmatter) via shell-aware parsing, plus **session/skill** variables (`${CLAUDE_SKILL_DIR}`, `${CLAUDE_SESSION_ID}`). MCP-sourced skills must **not** run inline shell from markdown (`!` blocks)—treat remote content as untrusted.
+## 12.1 Skills
 
-**Skills vs hardcoded commands.** Slash commands implemented in TypeScript (`source: 'builtin'`) are not the same as file-backed skills. The **Skill** tool only targets **prompt**-type commands that pass validation (and merges in **MCP** skills that are explicitly `loadedFrom === 'mcp'`).
+A **skill** is a reusable instruction pack stored as a Markdown file (usually with YAML frontmatter). Each skill lives in its own directory as `skill-name/SKILL.md` under a recognized config root (managed, user, project, or `--add-dir`).
+
+Skills are **data, not code**. They scale naturally with what users and projects add to disk. The runtime discovers them, shows the model a compact catalog entry, and loads the full body only on invocation.
+
+**Skills vs hardcoded commands.** Slash commands implemented in TypeScript (`source: 'builtin'`) are not the same as file-backed skills. The Skill tool only targets **prompt-type** commands that pass validation (and merges in MCP skills that are explicitly `loadedFrom === 'mcp'`).
+
+Here is a complete, minimal skill as an example:
+
+```yaml
+---
+name: Review PR
+description: Review a pull request for issues
+allowed-tools: Read Grep Glob
+context: fork
+---
+Review the PR at $ARGUMENTS. Focus on:
+- Security issues
+- Performance problems
+- Missing tests
+```
+
+This file would live at `.claude/skills/review-pr/SKILL.md`. When the model calls the Skill tool with `review-pr`, the runtime substitutes `$ARGUMENTS` with whatever the user or model provided and runs the prompt in a forked sub-agent (because `context: fork` is set).
+
+## 12.2 Plugins
+
+A **plugin** is a **bundle**: a manifest that declares paths to commands, skills, agents, hooks, MCP servers, and more. Plugins are loaded at startup and are closer to **shipping features** than a single Markdown file.
+
+**Built-in plugins** ship with the CLI, appear in the plugin UI, and can be **enabled or disabled** (persisted in user settings). Their identifier shape is typically **`{name}@builtin`**. A small in-code registry stores definitions (`name`, `description`, optional `skills`, `hooks`, `mcpServers`, `isAvailable`, `defaultEnabled`) and runs an init pass at startup. Only **enabled** built-in plugins contribute skills.
+
+**Contrast with always-on bundled skills.** Bundled skills are always-on Markdown playbooks checked into the product. Built-in plugins are for features operators or users should explicitly toggle.
+
+**Marketplace plugins** resolve from git or remote sources and carry **manifest** metadata (name, description, version), a filesystem root, optional skill paths, hooks, MCP servers, etc. The loader validates and registers components; failures should be typed errors where possible. For a minimal JSON manifest shape, think: `name`, `version`, and entry paths for the components your host supports.
+
+> **Tie-in -- Chapter 10 (MCP).** MCP servers can provide **remote skills** that appear alongside local ones in the catalog. Remote/MCP-sourced skills are merged under strict filters so the model cannot invoke arbitrary remote names. Inline shell execution is disabled for remote skill bodies—treat them as untrusted content.
 
 ## Conceptual map (no proprietary paths)
 
@@ -27,7 +60,7 @@
 | Substitution | Shell-aware `$ARGUMENTS`, positional and named slots, session/skill directory variables |
 | Listing | Character budget for names + blurbs; full body only on invocation |
 
-## Skill layout and loading
+## 12.3 Skill layout and loading
 
 **Modern `/skills/` layout.** Under each config root (managed, user, project, `--add-dir`), only **`skill-name/SKILL.md`** is supported. A loose `.md` at the top level of `/skills/` is **ignored**—every skill lives in its own directory named after the command.
 
@@ -41,7 +74,7 @@
 
 **Prompt materialization.** When a skill runs, the host builds content with an optional base-directory prefix, **argument substitution**, session/skill directory variables, then (for trusted local skills only) optional inline shell for fenced blocks—remote or MCP-sourced skills should skip shell execution.
 
-## Skill tool
+## 12.4 The Skill tool
 
 - **Name.** Conventionally a fixed tool name such as `Skill` in hosts that expose it.
 - **Input.** Command name (optional leading `/` stripped) and optional **`args`** string passed into the same materialization path as slash commands.
@@ -49,23 +82,7 @@
 - **Execution.** **Inline** expands into the current thread; **`context: fork`** runs in a sub-agent with its own budget and telemetry. Permission checks follow the normal tool pipeline.
 - **Discovery listing** (separate from the tool body) is attached on turns when the tool set includes the skill tool; see **Production concepts** and Chapter 07 for budgets.
 
-## Built-in plugins
-
-**Purpose.** Built-in plugins ship **with the CLI**, appear in a plugin UI, and can be **enabled or disabled** (persisted in user settings). Identifier shape is often **`{name}@builtin`**.
-
-**Registration.** A small in-code registry stores definitions (`name`, `description`, optional `skills`, `hooks`, `mcpServers`, `isAvailable`, `defaultEnabled`) and runs an init pass at startup.
-
-**Skills from built-ins.** Only **enabled** built-in plugins contribute skills, tagged so listing and analytics stay consistent with file-backed skills.
-
-**Contrast with always-on bundled skills.** **Bundled skills** are always-on markdown-backed playbooks checked into the product. **Built-in plugins** are for features operators or users should explicitly toggle.
-
-## Marketplace plugin manifests (concept)
-
-**Loaded plugin** records carry **manifest** metadata (name, description, version), filesystem **root**, optional skill paths, hooks, MCP servers, etc. The loader validates and registers components; failures should be **typed errors** where possible.
-
-For a minimal **JSON manifest** shape used in the wild, think: **`name`**, **`version`**, entry paths for components your host supports—not a single flat `tools` list unless your product maps that to concrete registrations.
-
-## Skill frontmatter (YAML)
+## 12.5 Frontmatter
 
 Keys below mirror common host schemas (hyphenated keys are literal YAML keys).
 
@@ -94,7 +111,7 @@ Use $ARGUMENTS or $0 / $1 or $foo after declaring arguments.
 
 **`arguments` naming.** Numeric-only names are rejected—they would collide with `$0`, `$1`, …
 
-## Substitution (arguments and session variables)
+## 12.6 Argument substitution
 
 | Mechanism | Role |
 |-----------|------|
@@ -143,7 +160,7 @@ flowchart LR
 - **Merge order** — Typical hosts concatenate: bundled skills, built-in plugin skills, skill-dir commands, workflows, marketplace plugin commands, then host builtins. Later entries can shadow by name depending on lookup rules.
 - **Built-in vs marketplace vs bundled** — Three different axes: code-registered toggles (`@builtin`), git-based manifests, and always-on bundled markdown shipped with the product.
 - **Telemetry** — Skill load and invocation events use hashed or redacted identifiers; avoid logging full skill bodies in production analytics.
-- **Skill listing attachment** — Local and MCP skills merge by name; **delta** listings track per-agent “already sent” sets; resume may suppress a duplicate catalog. Optional skill-search features can narrow turn-0 listings.
+- **Skill listing attachment** — Local and MCP skills merge by name; **delta** listings track per-agent "already sent" sets; resume may suppress a duplicate catalog. Optional skill-search features can narrow turn-0 listings.
 - **Execution modes** — Inline vs forked sub-agent; fork reuses the same materialization path as slash commands.
 - **Security** — No inline shell from MCP skill bodies; gitignored nested skill dirs skipped; plugin-only policy can disable user skills.
 
