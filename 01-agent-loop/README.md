@@ -12,7 +12,7 @@ An **agent loop** is the control program that repeatedly asks the language model
 
 The **transcript** is the ordered list of **messages you actually send to the model** on the next call: system and developer instructions (where your stack puts them), prior user turns, assistant replies, tool invocations, and tool results. Everything the model is allowed to “read” when it generates the next token should be reflected there. If something affects behavior but never appears in that message list, it lives **outside the transcript**.
 
-**Outside the transcript** is engine state that **controls** the loop without being copied into the chat history. Typical fields (names vary by product) include:
+**Outside the transcript** is engine state that **controls** the loop without being copied into the chat history. Typical fields include:
 
 - **Turn counter** — how many model rounds you have used in this session or sub-task, so you can enforce a maximum and avoid infinite tool chatter.
 - **Recovery attempts for output limits** — how many times you have already retried after the model hit its per-response output cap; paired with a hard ceiling so recovery cannot loop forever.

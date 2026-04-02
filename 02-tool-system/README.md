@@ -46,8 +46,6 @@ flowchart TD
 
 ## Production concepts
 
-These patterns show up in mature agent stacks; names vary, but the ideas recur.
-
 - **Validated concurrency** — Whether a call may run alongside others should depend on the tool definition **after** structured input validation. If validation fails, treat the call as not parallel-safe so you do not guess from malformed input.
 
 - **Registry lookup** — Resolve the incoming name against the canonical name **and** aliases. If the name is unknown, still emit a structured error result tied to the same call id so the conversation stays balanced (every pending call gets a matching result) and the model can recover on the next turn.

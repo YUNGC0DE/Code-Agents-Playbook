@@ -2,7 +2,7 @@
 
 > A single-page diagram of how a production-grade coding agent stack *can* fit together. Supplementary to the 16 implementation chapters—no `code-samples/` here.
 
-This README is a **reference layout** for user/IDE surfaces, query engine, tools, services, and permissions. It synthesizes patterns described across the playbook; a real product may implement a subset, reorder layers, or split responsibilities differently.
+This README sketches one **reference layout** for user/IDE surfaces, query engine, tools, services, and permissions. It synthesizes patterns described across the playbook.
 
 For **subsystem detail and implementation order**, use the [main README](../README.md) table of contents and [AGENTS.md](../AGENTS.md).
 

@@ -10,7 +10,7 @@ This repository — **Code Agents Playbook** documents how a production-grade AI
 
 **Use this as your blueprint** when building a custom code agent system. Chapters are **reference**, not a dependency graph: implement the minimal loop (Ch 01–02), add permissions (03), then add features from the concept index as required.
 
-**Full potential architecture (one diagram):** [17-arch-overview](17-arch-overview/) shows how subsystems connect end-to-end—user/IDE, query engine, compaction and recovery, tools, services (MCP, memory, API, analytics), and the permission layer. It is a **reference layout** inferred from production patterns, not a mandate to build everything at once; use the staged steps below and the concept index to choose what you need.
+**Full potential architecture (one diagram):** [17-arch-overview](17-arch-overview/) shows how subsystems connect end-to-end—user/IDE, query engine, compaction and recovery, tools, services (MCP, memory, API, analytics), and the permission layer. It is a **reference layout** drawn from production patterns; use the staged steps below and the concept index to choose what you need.
 
 ## Quick Navigation
 

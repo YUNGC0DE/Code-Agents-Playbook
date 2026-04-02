@@ -65,7 +65,7 @@ def read_messages(path: Path) -> list[dict[str, Any]]:
     return out
 ```
 
-Locked JSON array inbox (demo uses `threading.Lock`; **cross-process** agents need **fcntl**/OS advisory locks or a **lockfile helper with retries and backoff**—the same **serialize writers** idea production swarms rely on):
+Locked JSON array inbox. The sample below uses `threading.Lock` for a single process; **cross-process** agents need **fcntl**/OS advisory locks or a **lockfile helper with retries and backoff**—the same **serialize writers** idea production swarms rely on:
 
 ```41:49:docs/11-multi-agent-coordination/code-samples/locked_inbox_array.py
     def append(self, message: dict[str, Any]) -> None:

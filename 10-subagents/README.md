@@ -11,7 +11,7 @@ Two common shapes:
 1. **Specialist subagent** — Narrow **tool allowlist**, custom instructions, often async. The child’s API request is allowed to **differ** from the parent’s (different tools, thinking disabled, slimmer context).
 2. **Fork-aligned child** — The child must share the **same cache-key inputs** as the parent (system bytes, tools, model-related options, thinking config, shared message prefix). Tool definitions are often **copied verbatim** from the parent instead of re-filtered so serialized tool JSON **matches byte-for-byte**.
 
-This chapter uses **educational names** for patterns that appear under different symbols in each codebase. A concrete reference stack often has: a **nested agent runner** (long-lived stream + tool loop), a **forked worker** helper (same cache-safe bundle as parent, usage rollup, optional no-transcript mode), and an **implicit fork** path (optional agent type, inherited prefix, guard against recursive fork).
+This chapter uses **educational names** for recurring patterns. A typical stack has: a **nested agent runner** (long-lived stream + tool loop), a **forked worker** helper (same cache-safe bundle as parent, usage rollup, optional no-transcript mode), and an **implicit fork** path (optional agent type, inherited prefix, guard against recursive fork).
 
 ## Core concepts
 
@@ -69,9 +69,9 @@ flowchart LR
   end
 ```
 
-## Reference stack patterns (names vary)
+## Reference stack patterns
 
-These rows describe **roles** often split across modules (e.g. an agent **tool** entrypoint, a **runner** coroutine, and a small **fork** helper). Symbols differ by project; the ideas recur together.
+These rows describe **roles** often split across modules (e.g. an agent **tool** entrypoint, a **runner** coroutine, and a small **fork** helper).
 
 | Pattern | Role |
 |--------|------|

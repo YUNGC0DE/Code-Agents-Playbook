@@ -6,7 +6,7 @@
 
 Every proposed tool call is a **request to leave the model’s text world and touch the real one** (files, shell, network, remote APIs). A **permission system** is the gate: for each request it yields **allow**, **deny** (with a reason the UI or logs can show), or **ask** (pause for a human or an automation policy).
 
-This chapter is **conceptual**. It matches the shape of a full product implementation (ordered layers, async resolution, optional classifiers) without tying the narrative to any one repository layout.
+This chapter is **conceptual**. It matches the shape of a full product implementation: ordered layers, async resolution, optional classifiers.
 
 ### Modes as presets
 
@@ -16,13 +16,13 @@ Modes are **not** different models—they are **policy presets** on the same too
 - **Plan** — exploration-first: read-oriented tools may proceed without interrupting the user; mutating tools still reach the gate.
 - **Accept edits** — in-scope file edits can auto-approve when product rules align; deny lists and tool-specific checks still apply.
 - **Bypass** — minimize prompts where policy allows; **bypass-immune** paths remain (explicit ask rules, safety checks, tools that require human interaction, enterprise deny lists).
-- **Dont-ask / auto** (when the product enables them) — map unresolved **ask** to **deny**, or route **ask** through an **automation classifier** instead of a person.
+- **Dont-ask / auto** — map unresolved **ask** to **deny**, or route **ask** through an **automation classifier** instead of a person.
 
 ### Speculative work
 
 When the outcome is **ask**, wall-clock time is often dominated by human reaction. You can start an async job (risk scoring, command classification, validation) **in parallel with the dialog**. When the user confirms, **consume** the result under a **stable key** (tool-use id, hash, or normalized command string) so parallel dialogs never share state. If the user cancels, tear down tasks so you do not leak **unhandled rejection** noise.
 
-Some interactive sessions use a **short bounded wait**: race the classifier against a timer; if the classifier returns a high-confidence **allow** before the timeout, skip the dialog and **consume** the speculative result so it is not reused. Other deployment shapes (e.g. coordinator-style workers) **await** automated checks **before** showing a dialog—same building blocks, different scheduling.
+Some interactive sessions use a **short bounded wait**: race the classifier against a timer; if the classifier returns a high-confidence **allow** before the timeout, skip the dialog and **consume** the speculative result so it is not reused. Coordinator-style workers may **await** automated checks **before** showing a dialog—same building blocks, different scheduling.
 
 ### Frozen permission context
 
@@ -70,7 +70,7 @@ sequenceDiagram
 
 ## Key design decisions
 
-- **Modes as presets** — Same capability graph; modes change how **ask** is resolved by default, not which tools exist (except where a product mode explicitly shrinks the graph).
+- **Modes as presets** — Same capability graph; modes change how **ask** is resolved by default, not which tools exist, unless a mode definition explicitly removes tools from the graph.
 - **Forced decision** — Automation and tests need allow/deny without a person; the dialog can still show hook copy while the outcome is predetermined.
 - **Classifier overlap** — Use human latency for shell speculative work; use **auto** mode to overlap classifier work when there is no dialog.
 - **Hook allow is not blanket allow** — After hook **allow**, **rule-only** checks still apply so hooks cannot override enterprise deny lists or configured **ask** rules.
